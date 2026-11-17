@@ -1,0 +1,33 @@
+name: Post to X
+on:
+  schedule:
+    - cron: "30 22 * * *"   # 毎朝 7:30 JST
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "1ならドライラン（投稿しない）"
+        default: "1"
+permissions:
+  contents: write
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests requests-oauthlib
+      - name: Post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: python scripts/post_to_x.py
+      - name: Record posted marker
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add drafts/posted || true
+          git diff --cached --quiet || (git commit -m "chore: record X post" && git push)
